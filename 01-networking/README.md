@@ -80,7 +80,12 @@ netfilter-persistent save
 In the Proxmox web UI, or via shell:
 
 ```bash
-pct create 100 local:vztmpl/alpine-3.19-default_20240207_amd64.tar.xz \
+# ⚠️ Template version disclaimer: Alpine template filenames change with each release.
+# Before running this, check the current name with:
+#   pveam available --section system | grep alpine
+# Replace the template name below with whatever that command returns.
+
+pct create 100 local:vztmpl/alpine-3.21-default_20241217_amd64.tar.xz \
   --hostname gateway \
   --memory 256 \
   --net0 name=eth0,bridge=vmbr1,ip=10.10.10.1/24,gw=10.10.10.254 \

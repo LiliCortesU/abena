@@ -8,13 +8,19 @@ n8n running as a persistent systemd service using SQLite for storage (no separat
 ## Step 1 — Create CT103
 
 ```bash
-pct create 103 local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst \
+# ⚠️ Template version disclaimer: Debian template filenames change with each point release.
+# Before running this, check the current name with:
+#   pveam available --section system | grep debian-12
+# Replace the template name below with whatever that command returns.
+
+pct create 103 local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst \
   --hostname n8n \
   --memory 1024 \
   --net0 name=eth0,bridge=vmbr1,ip=dhcp \
   --net1 name=eth1,bridge=vmbr0,ip=dhcp \
   --rootfs local-lvm:8 \
   --unprivileged 1 \
+  --features nesting=1 \
   --onboot 1 \
   --start 1
 ```

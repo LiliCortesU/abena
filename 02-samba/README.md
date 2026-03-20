@@ -8,18 +8,24 @@ A Samba share that exposes the 2 TB SSD's data directories to your LAN. Windows,
 ## Step 1 — Create CT101
 
 ```bash
-pct create 101 local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst \
+# ⚠️ Template version disclaimer: Debian template filenames change with each point release.
+# Before running this, check the current name with:
+#   pveam available --section system | grep debian-12
+# Replace the template name below with whatever that command returns.
+
+pct create 101 local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst \
   --hostname samba \
   --memory 512 \
   --net0 name=eth0,bridge=vmbr0,ip=dhcp \
   --net1 name=eth1,bridge=vmbr1,ip=dhcp \
   --rootfs local-lvm:4 \
   --unprivileged 0 \
+  --features nesting=1 \
   --onboot 1 \
   --start 1
 ```
 
-> This container is **privileged** (`--unprivileged 0`) because it needs to bind-mount host directories. Keep it isolated with no unnecessary services.
+> This container is **privileged** (`--unprivileged 0`) because it needs to bind-mount host directories. `--features nesting=1` is required to suppress the `Systemd 252 detected` warning and ensure systemd services (smbd, nmbd) start correctly inside the container.
 
 ---
 

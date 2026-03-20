@@ -8,7 +8,12 @@
 ## Step 1 — Create CT107
 
 ```bash
-pct create 107 local:vztmpl/alpine-3.19-default_20240207_amd64.tar.xz \
+# ⚠️ Template version disclaimer: Alpine template filenames change with each release.
+# Before running this, check the current name with:
+#   pveam available --section system | grep alpine
+# Replace the template name below with whatever that command returns.
+
+pct create 107 local:vztmpl/alpine-3.21-default_20241217_amd64.tar.xz \
   --hostname watchdog \
   --memory 128 \
   --net0 name=eth0,bridge=vmbr0,ip=dhcp \

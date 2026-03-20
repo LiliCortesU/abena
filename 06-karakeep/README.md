@@ -8,7 +8,12 @@
 ## Step 1 — Create CT105
 
 ```bash
-pct create 105 local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst \
+# ⚠️ Template version disclaimer: Debian template filenames change with each point release.
+# Before running this, check the current name with:
+#   pveam available --section system | grep debian-12
+# Replace the template name below with whatever that command returns.
+
+pct create 105 local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst \
   --hostname karakeep \
   --memory 512 \
   --net0 name=eth0,bridge=vmbr1,ip=dhcp \

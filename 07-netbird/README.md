@@ -48,19 +48,24 @@ In the Netbird dashboard:
 ## Step 3 — Create CT106
 
 ```bash
-pct create 106 local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst \
+# ⚠️ Template version disclaimer: Debian template filenames change with each point release.
+# Before running this, check the current name with:
+#   pveam available --section system | grep debian-12
+# Replace the template name below with whatever that command returns.
+
+pct create 106 local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst \
   --hostname netbird \
   --memory 512 \
   --net0 name=eth0,bridge=vmbr0,ip=dhcp \
   --net1 name=eth1,bridge=vmbr1,ip=dhcp \
   --rootfs local-lvm:4 \
   --unprivileged 0 \
-  --features tun=1 \
+  --features tun=1,nesting=1 \
   --onboot 1 \
   --start 1
 ```
 
-> `--features tun=1` and privileged mode are required for WireGuard/TUN interface support.
+> `--features tun=1` is required for WireGuard/TUN interface support. `nesting=1` is required for systemd to run correctly in a privileged Debian container (suppresses the `Systemd 252 detected` warning). Both are needed here.
 
 ---
 
