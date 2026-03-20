@@ -56,24 +56,20 @@ The IP was shown at the end of the installer. Log in as `root` with the password
 
 ## Step 4 — Post-Install: Remove Subscription Nag & Set Free Repos
 
-Run these in the Proxmox shell (click your node → Shell in the web UI):
+Use the community post-install script — it handles repo switching, the subscription nag, and the update in one interactive run. Run this in the Proxmox shell (click your node → Shell in the web UI):
 
 ```bash
-# Remove the enterprise (paid) repo
-rm -f /etc/apt/sources.list.d/pve-enterprise.list
-
-# Add the free/community repo
-echo "deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription" \
-  > /etc/apt/sources.list.d/pve-no-subscription.list
-
-# Update & upgrade
-apt update && apt full-upgrade -y
-
-# Remove subscription popup (cosmetic)
-sed -i.bak "s/data.status !== 'Active'/false/g" \
-  /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
-systemctl restart pveproxy
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/tools/pve/post-pve-install.sh)"
 ```
+
+Answer **yes (y) to all prompts**. The script will:
+- Disable the enterprise (paid) repo
+- Enable the no-subscription (free) repo
+- Remove the subscription nag popup
+- Run a full system update
+- Offer to reboot — accept it
+
+> This script is the community-maintained successor to tteck's original Proxmox helper scripts, widely used in the homelab community.
 
 ---
 
@@ -92,6 +88,9 @@ Find your 2 TB SSD — it will be something like `/dev/sda`. Note the device nam
 > ⚠️ This will **erase everything** on the 2 TB SSD.
 
 ```bash
+# Install parted (not included in Proxmox base install)
+apt install -y parted
+
 # Replace /dev/sda with your actual device
 wipefs -a /dev/sda
 parted /dev/sda --script mklabel gpt
@@ -129,16 +128,28 @@ Or via the web UI: Datacenter → Storage → Add → Directory → path `/mnt/d
 
 ## Step 6 — Download LXC Templates
 
+The template list on Proxmox's servers updates regularly and version numbers change (e.g. `12.7-1` becomes `12.12-1`). Always query the live list to get the current name rather than hardcoding a version:
+
 ```bash
-# Update template list
+# Update the template list
 pveam update
 
-# Download Debian 12 (Bookworm) template — used for all containers
-pveam download local debian-12-standard_12.7-1_amd64.tar.zst
+# Find the current Debian 12 template name
+pveam available --section system | grep debian-12
 
-# Download Alpine 3.19 — used for lightweight containers (gateway, watchdog)
-pveam download local alpine-3.19-default_20240207_amd64.tar.xz
+# Download it — copy the exact name from the output above
+# Example (your version number may differ):
+pveam download local debian-12-standard_12.12-1_amd64.tar.zst
+
+# Find the current Alpine 3.x template name
+pveam available --section system | grep alpine-3
+
+# Download Alpine (for gateway and watchdog containers)
+# Example:
+pveam download local alpine-3.21-default_20241217_amd64.tar.xz
 ```
+
+> If `pveam download` returns `400 Parameter verification failed / no such template`, it means the version in your command doesn't match what's currently available. Re-run `pveam available --section system | grep debian-12` to get the exact current name and use that.
 
 ---
 
