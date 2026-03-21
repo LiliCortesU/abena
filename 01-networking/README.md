@@ -149,6 +149,10 @@ address=/watchdog.local/10.10.10.17
 server=1.1.1.1
 server=8.8.8.8
 
+# Default gateway — must point to Proxmox host (10.10.10.254) so traffic
+# reaches Squid for internet access. Do NOT use 10.10.10.1 (dnsmasq itself).
+dhcp-option=3,10.10.10.254
+
 domain=local
 expand-hosts
 EOF
