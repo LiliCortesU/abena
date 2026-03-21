@@ -170,8 +170,7 @@ systemctl enable --now qbittorrent
 Sonarr's install script downloads its binary from inside the container, which gets blocked by the router. Download the binary on the **Proxmox host** and push it in:
 
 ```bash
-# Create sonarr user and add to shared media group
-pct exec 102 -- groupadd media
+# Create sonarr user and add to the media group (already created in qBittorrent step)
 pct exec 102 -- useradd -r -s /sbin/nologin -G media sonarr
 
 # Add qbt to the media group too (so sonarr can access qbt's downloads)
