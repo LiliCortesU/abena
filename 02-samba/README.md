@@ -59,10 +59,10 @@ Inside CT101:
 apt update && apt install -y samba samba-common-bin
 
 # Create the samba user (maps to a Linux user)
-# Replace 'yourname' with whatever username you want to use from your devices
+# 'shareuser' is the username you'll use when connecting from your devices
 useradd -M -s /sbin/nologin shareuser
 smbpasswd -a shareuser
-# (enter your chosen Samba password twice)
+# (enter your chosen Samba password twice — this is what you'll type on your phone/laptop)
 
 # Write Samba config
 cat > /etc/samba/smb.conf << 'EOF'
