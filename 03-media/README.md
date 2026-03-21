@@ -322,21 +322,30 @@ pct exec 102 -- systemctl status prowlarr
 
 ## Step 5 — Initial Configuration
 
-Access each service from your LAN. First, get the container's internal IP:
+CT102 is internal-only (`vmbr1`). To access the web UIs from your browser you need to temporarily add a LAN interface. Run from the **Proxmox host**:
 
 ```bash
-# From Proxmox host — but this container is on vmbr1 (internal only)
-# Access via Proxmox host as a proxy, or add vmbr0 temporarily for setup
-# Easier: access from another container on vmbr1, or use SSH tunnel
-
-# Quick way: add a temporary LAN interface for initial setup
+# Add temporary LAN interface
 pct set 102 --net1 name=eth1,bridge=vmbr0,ip=dhcp
+
+# Get the LAN IP — this is what you use in your browser
+pct exec 102 -- dhclient eth1
 pct exec 102 -- ip addr show eth1 | grep 'inet '
 ```
 
-Then visit:
-- Jellyfin: `http://<media-ip>:8096`
-- qBittorrent: `http://<media-ip>:8080` (default login: `admin` / `adminadmin` — **change immediately**)
+Use the IP shown (e.g. `192.168.0.x`) to access all services:
+
+| Service | URL |
+|---------|-----|
+| Jellyfin | `http://<lan-ip>:8096` |
+| qBittorrent | `http://<lan-ip>:8080` |
+| Sonarr | `http://<lan-ip>:8989` |
+| Radarr | `http://<lan-ip>:7878` |
+| Prowlarr | `http://<lan-ip>:9696` |
+
+> ⚠️ The LAN IP changes every time you add the interface. Always run `pct exec 102 -- ip addr show eth1 | grep 'inet '` to get the current IP rather than assuming it's the same as last time.
+
+> See **[APPENDIX-media-config.md](../APPENDIX-media-config.md)** for detailed configuration steps for each service.
 - Sonarr: `http://<media-ip>:8989`
 - Radarr: `http://<media-ip>:7878`
 - Prowlarr: `http://<media-ip>:9696`

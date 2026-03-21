@@ -2,7 +2,11 @@
 
 This guide covers the initial configuration of all five services in CT102 after installation. Follow this order — each service depends on the previous one being configured first.
 
-> Access all services via the temporary LAN interface added during setup. See Step 5 of `03-media/README.md` for how to add it.
+> Access all services via the temporary LAN interface added during setup. The LAN IP changes each time you add the interface — always get the current one with:
+> ```bash
+> pct exec 102 -- ip addr show eth1 | grep 'inet '
+> ```
+> If eth1 is not present, add it first: `pct set 102 --net1 name=eth1,bridge=vmbr0,ip=dhcp && pct exec 102 -- dhclient eth1`
 
 ---
 
