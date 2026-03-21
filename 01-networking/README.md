@@ -56,8 +56,14 @@ Containers on `vmbr1` need internet access (for package installs, updates, etc.)
 
 ```bash
 # Enable IP forwarding permanently
-sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' /etc/sysctl.conf
-sysctl -p
+# Using a dedicated drop-in file — more reliable than editing sysctl.conf
+# which may not contain this line depending on the Proxmox version
+echo "net.ipv4.ip_forward=1" > /etc/sysctl.d/99-ip-forward.conf
+sysctl -p /etc/sysctl.d/99-ip-forward.conf
+
+# Verify
+sysctl net.ipv4.ip_forward
+# Must show: net.ipv4.ip_forward = 1
 
 # NAT: masquerade internal traffic through vmbr0 (your LAN interface)
 # Find your LAN interface name first:
