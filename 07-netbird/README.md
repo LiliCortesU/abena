@@ -71,28 +71,34 @@ pct create 106 local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst \
 
 ## Step 4 — Configure apt
 
-The internal `vmbr1` bridge is IPv4-only, and some routers block outbound HTTP for IPs they did not assign. The most reliable fix is routing all apt traffic through the Proxmox host via `apt-cacher-ng`, which has unrestricted internet access.
+The internal `vmbr1` bridge cannot reach external servers directly due to router restrictions. The solution is routing all apt traffic through `apt-cacher-ng` running on the Proxmox host, which has unrestricted internet access.
 
-First, make sure `apt-cacher-ng` is running on the Proxmox host (only needs to be done once — see [apt-cacher-ng setup](#apt-cacher-ng-one-time-setup) below if not done yet).
-
-Then run from the **Proxmox host**:
-
-```bash
-pct exec 106 -- bash -c 'echo "Acquire::ForceIPv4 \"true\";" > /etc/apt/apt.conf.d/99force-ipv4'
-pct exec 106 -- bash -c 'echo "Acquire::http::Proxy \"http://10.10.10.254:3142\";" > /etc/apt/apt.conf.d/00proxy'
-```
-
----
-
-## apt-cacher-ng one-time setup
-
-If not already done, run this once on the **Proxmox host** before setting up any container:
+**One-time setup on the Proxmox host** (skip if already done for a previous container):
 
 ```bash
 apt install -y apt-cacher-ng
 systemctl enable --now apt-cacher-ng
-ss -tlnp | grep 3142   # Verify it is listening
+ss -tlnp | grep 3142   # Should show apt-cacher-ng listening
+
+# Allow containers to reach the proxy
+iptables -A INPUT -i vmbr1 -p tcp --dport 3142 -j ACCEPT
+netfilter-persistent save
 ```
+
+**Inside CT106** — rewrite `sources.list` to route through the proxy directly:
+
+```bash
+pct enter 106
+
+cat > /etc/apt/sources.list << 'EOF'
+deb http://10.10.10.254:3142/deb.debian.org/debian bookworm main contrib non-free non-free-firmware
+deb http://10.10.10.254:3142/deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
+deb http://10.10.10.254:3142/security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+EOF
+apt update
+```
+
+> This embeds the proxy address directly in the mirror URLs — the most reliable method. All package downloads go to `10.10.10.254:3142` which fetches them on behalf of the container using the host's unrestricted internet connection.
 
 ---
 

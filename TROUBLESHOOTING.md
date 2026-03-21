@@ -39,26 +39,32 @@ The router blocks connections to unknown domains even on port 443. Only known/wh
 ### Fix C — Open port 80 on the router
 If your router allows it, permit outbound port 80 from the Proxmox host's LAN IP. All container traffic is NATted through the host, so the router sees it as the host's IP. This is the most permanent fix but requires router access and depends on your router model.
 
-### ✅ Fix D — apt-cacher-ng proxy on the Proxmox host (recommended)
+### ✅ Fix D — apt-cacher-ng with direct proxy URLs in sources.list (confirmed working)
 
-The most reliable solution. Run a caching apt proxy on the Proxmox host, which has unrestricted internet access. Containers route all apt traffic through it over the internal `vmbr1` network — the router block is completely bypassed. Packages are also cached, so multiple containers share downloads.
+The most reliable solution. Run a caching apt proxy on the Proxmox host, which has unrestricted internet access, and embed the proxy address directly in `sources.list` URLs.
+
+> Note: Using `Acquire::http::Proxy` in apt.conf did NOT work reliably — apt bypassed the proxy and connected directly. Embedding the proxy in `sources.list` URLs is the confirmed working method.
 
 **On the Proxmox host (run once):**
 ```bash
 apt install -y apt-cacher-ng
 systemctl enable --now apt-cacher-ng
+ss -tlnp | grep 3142   # Verify listening
 
-# Verify it's listening on port 3142
-ss -tlnp | grep 3142
+# Allow containers to reach the proxy
+iptables -A INPUT -i vmbr1 -p tcp --dport 3142 -j ACCEPT
+netfilter-persistent save
 ```
 
 **Inside each container:**
 ```bash
-echo 'Acquire::http::Proxy "http://10.10.10.254:3142";' > /etc/apt/apt.conf.d/00proxy
+cat > /etc/apt/sources.list << 'EOF'
+deb http://10.10.10.254:3142/deb.debian.org/debian bookworm main contrib non-free non-free-firmware
+deb http://10.10.10.254:3142/deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
+deb http://10.10.10.254:3142/security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+EOF
 apt update
 ```
-
-This is a permanent fix — it survives reboots and works for all future containers.
 
 ---
 
