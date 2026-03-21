@@ -12,58 +12,53 @@ E: Failed to fetch http://deb.debian.org/pool/...  Unable to connect to deb.debi
 E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?
 ```
 
-### Root Cause
-Your router is blocking outbound **port 80 (HTTP)** for IPs it did not assign via DHCP. Containers on the internal `vmbr1` bridge get IPs from dnsmasq (`10.10.10.x`), which the router doesn't know about. The router sees this traffic as suspicious and drops it.
+### Root Cause Analysis
 
-Note: `apt update` may succeed because it uses your `sources.list` (which we set to HTTPS), but `apt install` fetches the actual `.deb` package files from URLs embedded in package metadata — these still point to `http://`. The `ForceIPv4` config forces IPv4 but does **not** force HTTPS for package downloads.
+This error has a non-obvious root cause. Here is what was found through systematic debugging:
 
-### Fix A — Force HTTPS for all apt downloads
+| Test | Result |
+|------|--------|
+| Container → ping `8.8.8.8` | ✅ Works |
+| Container → `apt update` from `deb.debian.org` HTTPS | ✅ Works |
+| Container → `apt install` `.deb` files from `deb.debian.org` HTTP | ❌ Blocked |
+| Container → third-party HTTPS mirror | ❌ Blocked |
+| Proxmox host → full internet | ✅ Works |
 
-Run inside the affected container:
+The router blocks outbound HTTP (port 80) **and** connections to unknown domains for IPs it did not assign via DHCP. Containers on `vmbr1` get IPs from dnsmasq (`10.10.10.x`) which the router doesn't know about.
 
+Key distinction: `apt update` succeeds because it uses `sources.list` (set to HTTPS `deb.debian.org` which the router allows), but `apt install` fetches the actual `.deb` package files from URLs embedded in package metadata — these are hardcoded to `http://` and get blocked.
+
+Switching to a third-party HTTPS mirror also fails because the router blocks unknown domains even on port 443.
+
+### Fix A — Force HTTPS for apt downloads (did not work)
+apt fetches `.deb` URLs from package metadata which are hardcoded to `http://`. The `ForceIPv4` config does not rewrite these URLs. This fix is ineffective for this specific issue.
+
+### Fix B — Third-party HTTPS mirror (did not work)
+The router blocks connections to unknown domains even on port 443. Only known/whitelisted domains like `deb.debian.org` are allowed.
+
+### Fix C — Open port 80 on the router
+If your router allows it, permit outbound port 80 from the Proxmox host's LAN IP. All container traffic is NATted through the host, so the router sees it as the host's IP. This is the most permanent fix but requires router access and depends on your router model.
+
+### ✅ Fix D — apt-cacher-ng proxy on the Proxmox host (recommended)
+
+The most reliable solution. Run a caching apt proxy on the Proxmox host, which has unrestricted internet access. Containers route all apt traffic through it over the internal `vmbr1` network — the router block is completely bypassed. Packages are also cached, so multiple containers share downloads.
+
+**On the Proxmox host (run once):**
 ```bash
-cat > /etc/apt/apt.conf.d/98force-https << 'EOF'
-Acquire::http::Proxy "DIRECT";
-Acquire::ForceIPv4 "true";
-EOF
+apt install -y apt-cacher-ng
+systemctl enable --now apt-cacher-ng
+
+# Verify it's listening on port 3142
+ss -tlnp | grep 3142
 ```
 
-Then retry the install.
-
-### Fix B — Switch to a mirror with full HTTPS support
-
-Some mirrors serve `.deb` files natively over HTTPS without HTTP redirects:
-
+**Inside each container:**
 ```bash
-cat > /etc/apt/sources.list << 'EOF'
-deb https://mirror.debian.ikoula.com/debian/ bookworm main contrib non-free non-free-firmware
-deb https://mirror.debian.ikoula.com/debian/ bookworm-updates main contrib non-free non-free-firmware
-deb https://mirror.debian.ikoula.com/debian-security/ bookworm-security main contrib non-free non-free-firmware
-EOF
+echo 'Acquire::http::Proxy "http://10.10.10.254:3142";' > /etc/apt/apt.conf.d/00proxy
 apt update
 ```
 
-Then retry the install.
-
-### Fix C — Open port 80 on your router
-
-All container traffic exits through the Proxmox host's LAN IP (via NAT). If your router allows it, add a rule permitting outbound port 80 from the Proxmox host's IP. This is the most permanent solution and requires no changes to containers.
-
-### Fix D — apt-cacher-ng proxy on the Proxmox host
-
-Run a caching apt proxy on the Proxmox host (which has full internet access). Containers route all apt traffic through it over the internal `vmbr1` network, bypassing the router restriction entirely.
-
-```bash
-# On Proxmox host
-apt install -y apt-cacher-ng
-systemctl enable --now apt-cacher-ng
-# Listens on port 3142
-```
-
-Then in each container:
-```bash
-echo 'Acquire::http::Proxy "http://10.10.10.254:3142";' > /etc/apt/apt.conf.d/00proxy
-```
+This is a permanent fix — it survives reboots and works for all future containers.
 
 ---
 
