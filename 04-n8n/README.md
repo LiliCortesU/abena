@@ -92,16 +92,27 @@ pct enter 103
 ```
 
 ```bash
-# Install Node.js 20 (LTS)
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt install -y nodejs
+# Exit CT103 first, run on Proxmox host
+exit
+```
+
+```bash
+# On Proxmox host — fetch Node.js setup script and pipe into container
+curl -fsSL https://deb.nodesource.com/setup_20.x | pct exec 103 -- bash
+
+# Install Node.js through the proxy
+pct exec 103 -- apt install -y nodejs
 
 # Verify
-node --version   # Should be v20.x.x
-npm --version
+pct exec 103 -- node --version   # Should be v20.x.x
+pct exec 103 -- npm --version
 
 # Install n8n globally
-npm install -g n8n
+pct exec 103 -- npm install -g n8n
+
+# Re-enter the container
+pct enter 103
+```
 
 # Create dedicated user
 useradd -r -m -s /bin/bash n8n

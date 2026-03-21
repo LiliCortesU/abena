@@ -109,14 +109,14 @@ pct enter 106
 ```
 
 ```bash
-# Install Netbird
-curl -fsSL https://pkgs.netbird.io/install.sh | sh
+# On Proxmox host — fetch Netbird install script and pipe into container
+curl -fsSL https://pkgs.netbird.io/install.sh | pct exec 106 -- sh
 
 # Authenticate with your setup key (replace with your actual key)
-netbird up --setup-key YOUR_SETUP_KEY_HERE --management-url https://api.netbird.io
+pct exec 106 -- netbird up --setup-key YOUR_SETUP_KEY_HERE --management-url https://api.netbird.io
 
 # Verify connection
-netbird status
+pct exec 106 -- netbird status
 # Should show "Connected" and display your Netbird IP (100.x.x.x range)
 ```
 

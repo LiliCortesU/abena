@@ -34,21 +34,27 @@ pct enter 107
 ```
 
 ```bash
-# Alpine: install Node.js and npm
-apk update && apk add nodejs npm git
+# Alpine: install Node.js, npm and pm2
+apk update && apk add nodejs npm
 
-# Install Uptime Kuma
+# Install pm2 (uses npm — internal, no external connection needed)
 npm install -g pm2
-git clone https://github.com/louislam/uptime-kuma.git /opt/uptime-kuma
-cd /opt/uptime-kuma
-npm run setup
-
-# Start with PM2 (process manager — auto-restarts on crash)
-pm2 start server/server.js --name uptime-kuma
-pm2 save
-pm2 startup   # Follow the output instructions to enable on boot
 
 exit
+```
+
+```bash
+# On Proxmox host — clone Uptime Kuma and push into container
+git clone https://github.com/louislam/uptime-kuma.git /tmp/uptime-kuma
+tar -czf /tmp/uptime-kuma.tar.gz -C /tmp uptime-kuma
+pct push 107 /tmp/uptime-kuma.tar.gz /tmp/uptime-kuma.tar.gz
+pct exec 107 -- tar -xzf /tmp/uptime-kuma.tar.gz -C /opt/
+pct exec 107 -- sh -c 'cd /opt/uptime-kuma && npm run setup'
+
+# Start with PM2
+pct exec 107 -- pm2 start /opt/uptime-kuma/server/server.js --name uptime-kuma
+pct exec 107 -- pm2 save
+pct exec 107 -- pm2 startup
 ```
 
 ---

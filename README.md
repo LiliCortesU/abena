@@ -61,6 +61,8 @@ Follow these guides in sequence. **Do not skip steps.**
 
 > 🔧 Running into errors? Check the **[Troubleshooting Guide](./TROUBLESHOOTING.md)** — it covers the most common issues encountered during setup.
 
+> 📦 Adding a new service not listed here? See the **[New Container Appendix](./APPENDIX-new-containers.md)** — it covers proxy setup, apt config, and the correct way to install software in any new container.
+
 ---
 
 ## DHCP Resilience Strategy

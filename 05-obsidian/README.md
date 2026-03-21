@@ -98,19 +98,30 @@ pct enter 104
 ```
 
 ```bash
-# Add CouchDB repo
-curl https://couchdb.apache.org/repo/keys.asc | gpg --dearmor \
-  > /usr/share/keyrings/couchdb-archive-keyring.gpg
+# Exit CT104 first, run on Proxmox host
+exit
+```
 
-echo "deb [signed-by=/usr/share/keyrings/couchdb-archive-keyring.gpg] \
-  https://apache.jfrog.io/artifactory/couchdb-deb/ bookworm main" \
-  > /etc/apt/sources.list.d/couchdb.list
+```bash
+# On Proxmox host — fetch CouchDB GPG key and push into container
+curl -fsSL https://couchdb.apache.org/repo/keys.asc \
+  | gpg --dearmor \
+  | pct exec 104 -- tee /usr/share/keyrings/couchdb-archive-keyring.gpg > /dev/null
 
-apt update
+# Add CouchDB repo through the proxy
+pct exec 104 -- bash -c \
+  'echo "deb [signed-by=/usr/share/keyrings/couchdb-archive-keyring.gpg] \
+  http://10.10.10.254:3142/apache.jfrog.io/artifactory/couchdb-deb/ bookworm main" \
+  > /etc/apt/sources.list.d/couchdb.list'
 
-# Install — select "standalone" mode when prompted
+pct exec 104 -- apt update
+
+# Install CouchDB — select "standalone" mode when prompted
 # Set admin password when asked — use something strong and save it
-DEBIAN_FRONTEND=noninteractive apt install -y couchdb
+pct exec 104 -- apt install -y couchdb
+
+# Re-enter the container
+pct enter 104
 ```
 
 During the install wizard:

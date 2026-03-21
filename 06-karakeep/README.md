@@ -92,16 +92,23 @@ pct enter 105
 ```
 
 ```bash
-# Install Docker
-curl -fsSL https://get.docker.com | sh
-systemctl enable --now docker
+# Exit CT105 first, run on Proxmox host
+exit
+```
 
-# Install Docker Compose plugin
-apt install -y docker-compose-plugin
+```bash
+# On Proxmox host — fetch Docker install script and pipe into container
+curl -fsSL https://get.docker.com | pct exec 105 -- sh
+
+pct exec 105 -- systemctl enable --now docker
+pct exec 105 -- apt install -y docker-compose-plugin
 
 # Verify
-docker --version
-docker compose version
+pct exec 105 -- docker --version
+pct exec 105 -- docker compose version
+
+# Re-enter the container
+pct enter 105
 ```
 
 ---
