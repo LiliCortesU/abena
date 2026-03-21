@@ -141,11 +141,22 @@ pct exec <ID> -- apt install -y <package>
 
 ### Install scripts (curl | bash)
 
-Never run these inside the container. Pipe through the host:
+Be cautious with install scripts. Some scripts download additional binaries from inside the container after they start running — those downloads will fail because the container can't reach external servers directly, even if the script itself was piped from the host.
 
+**Safe — script doesn't download anything internally:**
 ```bash
 # On Proxmox host
 curl -fsSL <script-url> | pct exec <ID> -- bash
+```
+
+**Unsafe — script downloads binaries internally (e.g. Sonarr, Radarr):**
+In this case, skip the install script entirely. Download the binary directly on the host and push it in:
+```bash
+# On Proxmox host
+curl -fsSL <binary-url> -o /tmp/<file>
+pct push <ID> /tmp/<file> /tmp/<file>
+pct exec <ID> -- tar -xzf /tmp/<file> -C /opt/
+# Then create systemd service manually
 ```
 
 ### Binaries and release archives

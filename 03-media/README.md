@@ -134,8 +134,12 @@ pct enter 102
 ```bash
 apt install -y qbittorrent-nox
 
-# Create a dedicated user
-useradd -r -s /sbin/nologin qbt
+# Create a shared media group — all download/media services run under this group
+# so they can read each other's files without permission conflicts
+groupadd media
+
+# Create a dedicated user for qBittorrent, add to media group
+useradd -r -s /sbin/nologin -G media qbt
 
 cat > /etc/systemd/system/qbittorrent.service << 'EOF'
 [Unit]
@@ -144,6 +148,7 @@ After=network.target
 
 [Service]
 User=qbt
+Group=media
 ExecStart=/usr/bin/qbittorrent-nox --webui-port=8080
 Restart=always
 RestartSec=5
@@ -152,7 +157,8 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-chown -R qbt:qbt /mnt/downloads
+# Give the media group ownership of download directories
+chown -R qbt:media /mnt/downloads
 chmod -R 775 /mnt/downloads
 
 systemctl daemon-reload
@@ -161,60 +167,120 @@ systemctl enable --now qbittorrent
 
 ### Sonarr
 
-Sonarr no longer uses an apt repo — the official method is an install script that deploys binaries directly to `/opt/Sonarr`. Run from the **Proxmox host**:
+Sonarr's install script downloads its binary from inside the container, which gets blocked by the router. Download the binary on the **Proxmox host** and push it in:
 
 ```bash
-# Fetch the install script and pipe into CT102
-curl -fsSL https://raw.githubusercontent.com/Sonarr/Sonarr/develop/distribution/debian/install.sh \
-  | pct exec 102 -- bash
-```
+# Create sonarr user and add to shared media group
+pct exec 102 -- groupadd media
+pct exec 102 -- useradd -r -s /sbin/nologin -G media sonarr
 
-The script will ask:
-- **User to run Sonarr as** → type `sonarr`
-- **Group to run Sonarr as** → type `sonarr`
+# Add qbt to the media group too (so sonarr can access qbt's downloads)
+pct exec 102 -- usermod -aG media qbt
 
-Sonarr is configured to auto-start by the install script. Verify:
+# Download Sonarr binary on the host
+curl -fsSL "https://services.sonarr.tv/v1/download/main/latest?version=4&os=linux&arch=x64" \
+  -o /tmp/sonarr.tar.gz
 
-```bash
+# Push into CT102 and extract
+pct push 102 /tmp/sonarr.tar.gz /tmp/sonarr.tar.gz
+pct exec 102 -- tar -xzf /tmp/sonarr.tar.gz -C /opt/
+pct exec 102 -- chown -R sonarr:media /opt/Sonarr
+pct exec 102 -- mkdir -p /var/lib/sonarr
+pct exec 102 -- chown -R sonarr:media /var/lib/sonarr
+
+# Create systemd service
+pct exec 102 -- bash -c 'cat > /etc/systemd/system/sonarr.service << EOF
+[Unit]
+Description=Sonarr Daemon
+After=syslog.target network.target
+
+[Service]
+User=sonarr
+Group=media
+Type=simple
+ExecStart=/opt/Sonarr/Sonarr -nobrowser -data=/var/lib/sonarr/
+TimeoutStopSec=20
+KillMode=process
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF'
+
+pct exec 102 -- systemctl daemon-reload
+pct exec 102 -- systemctl enable --now sonarr
 pct exec 102 -- systemctl status sonarr
 ```
 
 ### Radarr
 
-Radarr's install script also fetches externally — run from the **Proxmox host**:
+Same approach as Sonarr — download on the host, push in:
 
 ```bash
-# On Proxmox host
-curl -fsSL https://raw.githubusercontent.com/Radarr/Radarr/develop/distribution/debian/install.sh \
-  | pct exec 102 -- bash
+# Download Radarr binary on the host
+curl -fsSL "https://radarr.servarr.com/v1/update/master/updatefile?os=linux&runtime=netcore&arch=x64" \
+  -o /tmp/radarr.tar.gz
+
+# Push into CT102 and extract
+pct push 102 /tmp/radarr.tar.gz /tmp/radarr.tar.gz
+pct exec 102 -- tar -xzf /tmp/radarr.tar.gz -C /opt/
+pct exec 102 -- chown -R sonarr:media /opt/Radarr
+pct exec 102 -- mkdir -p /var/lib/radarr
+pct exec 102 -- chown -R sonarr:media /var/lib/radarr
+
+# Create systemd service
+pct exec 102 -- bash -c 'cat > /etc/systemd/system/radarr.service << EOF
+[Unit]
+Description=Radarr Daemon
+After=syslog.target network.target
+
+[Service]
+User=sonarr
+Group=media
+Type=simple
+ExecStart=/opt/Radarr/Radarr -nobrowser -data=/var/lib/radarr/
+TimeoutStopSec=20
+KillMode=process
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF'
+
+pct exec 102 -- systemctl daemon-reload
+pct exec 102 -- systemctl enable --now radarr
+pct exec 102 -- systemctl status radarr
 ```
 
 ### Prowlarr
 
-Fetch the release from the **Proxmox host** and copy it into the container:
-
 ```bash
-# On Proxmox host — get latest release URL and download it
+# Get latest Prowlarr release and download on the host
 PROWLARR_URL=$(curl -s https://api.github.com/repos/Prowlarr/Prowlarr/releases/latest \
-  | grep 'browser_download_url.*linux-x64.tar.gz' | cut -d '"' -f 4)
+  | grep 'browser_download_url.*linux-core-x64.tar.gz' | cut -d '"' -f 4)
 curl -fsSL "$PROWLARR_URL" -o /tmp/prowlarr.tar.gz
 
-# Copy into container and extract
+# Push into CT102 and extract
 pct push 102 /tmp/prowlarr.tar.gz /tmp/prowlarr.tar.gz
 pct exec 102 -- tar -xzf /tmp/prowlarr.tar.gz -C /opt/
-pct exec 102 -- chown -R root:root /opt/Prowlarr
+pct exec 102 -- chown -R sonarr:media /opt/Prowlarr
+pct exec 102 -- mkdir -p /var/lib/prowlarr
+pct exec 102 -- chown -R sonarr:media /var/lib/prowlarr
 
-# Create the service inside CT102
+# Create systemd service
 pct exec 102 -- bash -c 'cat > /etc/systemd/system/prowlarr.service << EOF
 [Unit]
-Description=Prowlarr
-After=network.target
+Description=Prowlarr Daemon
+After=syslog.target network.target
 
 [Service]
-ExecStart=/opt/Prowlarr/Prowlarr -nobrowser -data=/var/lib/prowlarr
-Restart=always
-RestartSec=5
-User=root
+User=sonarr
+Group=media
+Type=simple
+ExecStart=/opt/Prowlarr/Prowlarr -nobrowser -data=/var/lib/prowlarr/
+TimeoutStopSec=20
+KillMode=process
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
@@ -222,11 +288,7 @@ EOF'
 
 pct exec 102 -- systemctl daemon-reload
 pct exec 102 -- systemctl enable --now prowlarr
-```
-
-```bash
-# Re-enter the container when done
-pct enter 102
+pct exec 102 -- systemctl status prowlarr
 ```
 
 ---
