@@ -59,6 +59,8 @@ Follow these guides in sequence. **Do not skip steps.**
 9. [08 — Watchdog Monitoring](./08-watchdog/README.md)
 10. [09 — Backups](./09-backups/README.md)
 
+> 🔧 Running into errors? Check the **[Troubleshooting Guide](./TROUBLESHOOTING.md)** — it covers the most common issues encountered during setup.
+
 ---
 
 ## DHCP Resilience Strategy
