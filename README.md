@@ -65,7 +65,96 @@ Follow these guides in sequence. **Do not skip steps.**
 
 ---
 
-## DHCP Resilience Strategy
+## Users & Groups Reference
+
+Every service runs under a dedicated, unprivileged Linux user — never as root. This limits the blast radius if a service is compromised. Below is the complete list of users and groups created across Abena, why they exist, and where in the guides they are created.
+
+### Proxmox Host
+
+No custom users are created on the Proxmox host itself. All work is done as `root`, which is standard for Proxmox administration.
+
+---
+
+### CT101 — Samba
+
+| Account | Type | Purpose | Created in |
+|---------|------|---------|-----------|
+| `shareuser` | Linux user + Samba user | Read/write access to shares — this is the username and password you type on your devices | [02-samba → Step 4](./02-samba/README.md) |
+| `nobody` | Built-in system account | Guest (unauthenticated) read-only access — Samba maps connections with no credentials to this account | Pre-exists on Debian, nothing to create |
+
+**Why two users?** Samba maps network connections to Linux users for file permissions. `shareuser` owns the share directories and requires a password. `nobody` already exists on every Debian system with minimal permissions — we simply tell Samba to use it for guests, so devices like TVs and media players can browse without credentials.
+
+---
+
+### CT102 — Media Server
+
+| Account | Type | Purpose | Created in |
+|---------|------|---------|-----------|
+| `media` | Group | Shared group for all download/media services — allows them to read each other's files | [03-media → Step 4, qBittorrent section](./03-media/README.md) |
+| `qbt` | Linux user | Runs qBittorrent — member of `media` group | [03-media → Step 4, qBittorrent section](./03-media/README.md) |
+| `sonarr` | Linux user | Runs Sonarr, Radarr, and Prowlarr — member of `media` group | [03-media → Step 4, Sonarr section](./03-media/README.md) |
+
+**Why a shared `media` group?** Sonarr and Radarr need to move files that qBittorrent downloaded. Without a shared group, `sonarr` cannot access files owned by `qbt` and imports would fail silently. By putting both users in `media` and setting directory permissions to `775`, all services can read and write to shared directories. Radarr and Prowlarr reuse the `sonarr` user — no separate accounts needed since they serve the same function and need the same file access.
+
+**Why not just use root?** If qBittorrent or Sonarr were exploited, an attacker would only gain the limited permissions of `qbt` or `sonarr` — not root access to the container or the host.
+
+---
+
+### CT103 — n8n
+
+| Account | Type | Purpose | Created in |
+|---------|------|---------|-----------|
+| `n8n` | Linux user | Runs the n8n automation server — owns the data directory at `/mnt/n8n` | [04-n8n → Step 4](./04-n8n/README.md) |
+
+**Why a dedicated user?** n8n stores credentials and workflow data. Running it as a dedicated user means its data directory is only accessible to that user, adding a layer of isolation.
+
+---
+
+### CT104 — Obsidian LiveSync (CouchDB)
+
+| Account | Type | Purpose | Created in |
+|---------|------|---------|-----------|
+| `admin` | CouchDB admin user | Full administrative access to CouchDB — set during `apt install couchdb` | [05-obsidian → Step 4](./05-obsidian/README.md) |
+| `obsidian` | CouchDB sync user | Limited account used by the Obsidian LiveSync plugin on your devices — access restricted to the `obsidian-vault` database only | [05-obsidian → Step 6](./05-obsidian/README.md) |
+
+**Why two CouchDB users?** The `admin` account has full database control and should never leave the server. The `obsidian` sync user has access only to the vault database — if your sync credentials were ever exposed, an attacker could not access CouchDB administration or other databases.
+
+> Note: CouchDB manages its own users internally. These are not Linux system users.
+
+---
+
+### CT105 — Karakeep
+
+No custom Linux users are created. Karakeep runs inside Docker containers which manage their own internal users. The first account registered in the Karakeep web UI becomes the owner.
+
+---
+
+### CT106 — Netbird
+
+No custom Linux users are created. Netbird runs as a system service under root, which is standard for VPN clients that need to manage network interfaces.
+
+---
+
+### CT107 — Watchdog (Uptime Kuma)
+
+No custom Linux users are created. Uptime Kuma runs under PM2 as root inside the Alpine container. The first account registered in the web UI becomes the admin.
+
+---
+
+### Summary Table
+
+| Container | User/Group | Where created |
+|-----------|-----------|---------------|
+| CT101 | `shareuser` (Linux + Samba) | 02-samba Step 4 |
+| CT101 | `nobody` (Samba guest) | Pre-exists, no action needed |
+| CT102 | `media` group | 03-media Step 4 — qBittorrent |
+| CT102 | `qbt` | 03-media Step 4 — qBittorrent |
+| CT102 | `sonarr` | 03-media Step 4 — Sonarr |
+| CT103 | `n8n` | 04-n8n Step 4 |
+| CT104 | `admin` (CouchDB) | 05-obsidian Step 4 |
+| CT104 | `obsidian` (CouchDB) | 05-obsidian Step 6 |
+
+
 
 Your router assigns IPs dynamically and cannot reserve addresses. To work around this without touching the router:
 
