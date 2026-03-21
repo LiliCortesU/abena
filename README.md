@@ -50,14 +50,15 @@ Follow these guides in sequence. **Do not skip steps.**
 
 1. [00 — Proxmox Install & Storage](./00-proxmox-install/README.md)
 2. [01 — Networking (bridge + internal DNS)](./01-networking/README.md)
-3. [02 — Samba File Server](./02-samba/README.md)
-4. [03 — Media Server](./03-media/README.md)
-5. [04 — n8n Automation](./04-n8n/README.md)
-6. [05 — Obsidian LiveSync](./05-obsidian/README.md)
-7. [06 — Karakeep](./06-karakeep/README.md)
-8. [07 — Netbird VPN](./07-netbird/README.md)
-9. [08 — Watchdog Monitoring](./08-watchdog/README.md)
-10. [09 — Backups](./09-backups/README.md)
+3. [01b — Squid Transparent Proxy](./01b-squid-proxy/README.md) ⚠️ **Do this before any container setup**
+4. [02 — Samba File Server](./02-samba/README.md)
+5. [03 — Media Server](./03-media/README.md)
+6. [04 — n8n Automation](./04-n8n/README.md)
+7. [05 — Obsidian LiveSync](./05-obsidian/README.md)
+8. [06 — Karakeep](./06-karakeep/README.md)
+9. [07 — Netbird VPN](./07-netbird/README.md)
+10. [08 — Watchdog Monitoring](./08-watchdog/README.md)
+11. [09 — Backups](./09-backups/README.md)
 
 > 🔧 Running into errors? Check the **[Troubleshooting Guide](./TROUBLESHOOTING.md)** — it covers the most common issues encountered during setup.
 

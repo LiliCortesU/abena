@@ -6,6 +6,8 @@ Common errors encountered during Abena setup and how to resolve them.
 
 ## apt: `Unable to connect to deb.debian.org:http`
 
+> ⚠️ **If you followed the setup order and completed `01b-squid-proxy`, this error should not occur.** The Squid transparent proxy handles all outbound HTTP/HTTPS from containers automatically. If you see this error, check that Squid is running on the Proxmox host and the iptables REDIRECT rules are in place — see [01b — Squid Transparent Proxy](../01b-squid-proxy/README.md).
+
 ### Symptoms
 ```
 E: Failed to fetch http://deb.debian.org/pool/...  Unable to connect to deb.debian.org:http:

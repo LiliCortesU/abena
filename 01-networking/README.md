@@ -199,4 +199,6 @@ Update the `dhcp-host=` lines in CT100's `/etc/dnsmasq.conf` with the real MACs,
 - [ ] CT100 (gateway) running with dnsmasq
 - [ ] Containers can ping `10.10.10.1` from their `vmbr1` interface
 
-**Next:** [02 — Samba](../02-samba/README.md)
+**Next:** [01b — Squid Transparent Proxy](../01b-squid-proxy/README.md)
+
+> ⚠️ Do not skip 01b. The router blocks most outbound traffic from containers — Squid fixes this permanently before you set up any services.

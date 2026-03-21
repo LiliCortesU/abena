@@ -4,13 +4,16 @@ This guide covers everything needed to set up any new LXC container on Abena so 
 
 ---
 
-## Background: Why Containers Can't Reach the Internet Directly
+## Background: Network Access for Containers
 
-Containers on the internal bridge (`vmbr1`, `10.10.10.0/24`) cannot make direct TCP connections to external servers. The router only allows outbound traffic from IPs it assigned via DHCP — the internal `10.10.10.x` addresses are unknown to it and get blocked.
+Containers on `vmbr1` (`10.10.10.0/24`) have full internet access routed through two layers:
 
-**The solution:** All external connections are routed through:
-- **`apt-cacher-ng`** on the Proxmox host (`10.10.10.254:3142`) — for apt package downloads
-- **The Proxmox host itself** — for install scripts, GPG keys, binaries, and git repos
+- **Squid transparent proxy** (Proxmox host, port 3129/3130) — intercepts all HTTP/HTTPS traffic from `vmbr1` and forwards it through the host's unrestricted internet connection. Containers require no special configuration — they behave as if they have direct internet access.
+- **apt-cacher-ng** (Proxmox host, port 3142) — caching proxy for apt packages. `sources.list` is configured to use proxy URLs for faster repeated installs.
+
+**If Squid is running correctly**, containers can make direct HTTP/HTTPS connections to any external server. Install scripts, `curl`, `wget`, and service API calls all work normally.
+
+**If Squid is not running** (e.g. not yet set up, or crashed), fall back to the host-as-intermediary approach: download files on the Proxmox host and push them into containers with `pct push`. See [01b — Squid Transparent Proxy](../01b-squid-proxy/README.md) to set up or restore Squid.
 
 ---
 
