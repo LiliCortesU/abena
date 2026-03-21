@@ -45,7 +45,17 @@ pct create 102 local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst \
 
 ---
 
-## Step 2 — Bind-Mount Data Directories
+## Step 2 — Force apt to use IPv4
+
+The internal `vmbr1` bridge is IPv4-only. Without this, `apt` will try IPv6 addresses first and fail with `Network is unreachable` errors:
+
+```bash
+pct exec 102 -- bash -c 'echo "Acquire::ForceIPv4 \"true\";" > /etc/apt/apt.conf.d/99force-ipv4'
+```
+
+---
+
+## Step 3 — Bind-Mount Data Directories
 
 ```bash
 pct stop 102
@@ -59,7 +69,7 @@ pct start 102
 
 ---
 
-## Step 3 — Install All Services
+## Step 4 — Install All Services
 
 ```bash
 pct enter 102
@@ -160,7 +170,7 @@ exit
 
 ---
 
-## Step 4 — Initial Configuration
+## Step 5 — Initial Configuration
 
 Access each service from your LAN. First, get the container's internal IP:
 
@@ -216,7 +226,7 @@ Then visit:
 
 ---
 
-## Step 5 — Remove Temporary LAN Interface
+## Step 6 — Remove Temporary LAN Interface
 
 Once configured, remove the temporary eth1 to keep the media container internal-only:
 

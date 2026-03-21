@@ -29,7 +29,17 @@ pct create 103 local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst \
 
 ---
 
-## Step 2 — Bind-Mount Data Directory
+## Step 2 — Force apt to use IPv4
+
+The internal `vmbr1` bridge is IPv4-only. Without this, `apt` will try IPv6 addresses first and fail with `Network is unreachable` errors:
+
+```bash
+pct exec 103 -- bash -c 'echo "Acquire::ForceIPv4 \"true\";" > /etc/apt/apt.conf.d/99force-ipv4'
+```
+
+---
+
+## Step 3 — Bind-Mount Data Directory
 
 ```bash
 pct stop 103
@@ -39,7 +49,7 @@ pct start 103
 
 ---
 
-## Step 3 — Install n8n
+## Step 4 — Install n8n
 
 ```bash
 pct enter 103
@@ -67,7 +77,7 @@ chown -R n8n:n8n /mnt/n8n
 
 ---
 
-## Step 4 — Create systemd Service
+## Step 5 — Create systemd Service
 
 ```bash
 cat > /etc/systemd/system/n8n.service << 'EOF'
@@ -107,7 +117,7 @@ systemctl enable --now n8n
 
 ---
 
-## Step 5 — Verify
+## Step 6 — Verify
 
 ```bash
 systemctl status n8n
@@ -131,7 +141,7 @@ pct exec 103 -- ip addr show eth1 | grep 'inet '
 
 ---
 
-## Step 6 — Secure the Config
+## Step 7 — Secure the Config
 
 The password in the systemd unit file is readable by root. For a more secure setup, use an environment file:
 

@@ -29,7 +29,17 @@ pct create 101 local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst \
 
 ---
 
-## Step 2 — Bind-Mount the Data Directory
+## Step 2 — Force apt to use IPv4
+
+The internal `vmbr1` bridge is IPv4-only. Without this, `apt` will try IPv6 addresses first and fail with `Network is unreachable` errors:
+
+```bash
+pct exec 101 -- bash -c 'echo "Acquire::ForceIPv4 \"true\";" > /etc/apt/apt.conf.d/99force-ipv4'
+```
+
+---
+
+## Step 3 — Bind-Mount the Data Directory
 
 The 2 TB SSD data is on the **Proxmox host** at `/mnt/data`. We bind-mount it into the container so Samba can serve it:
 
@@ -47,7 +57,7 @@ pct start 101
 
 ---
 
-## Step 3 — Install & Configure Samba
+## Step 4 — Install & Configure Samba
 
 Two users are created:
 
@@ -134,7 +144,7 @@ exit
 
 ---
 
-## Step 4 — Verify the Share
+## Step 5 — Verify the Share
 
 From another machine on your LAN:
 
@@ -157,7 +167,7 @@ pct exec 101 -- ip addr show eth0 | grep 'inet '
 
 ---
 
-## Step 5 — Optional: Persistent LAN Mount (Linux clients)
+## Step 6 — Optional: Persistent LAN Mount (Linux clients)
 
 ```bash
 # Add to /etc/fstab on a Linux client

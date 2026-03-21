@@ -35,7 +35,17 @@ pct create 104 local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst \
 
 ---
 
-## Step 2 — Bind-Mount Data
+## Step 2 — Force apt to use IPv4
+
+The internal `vmbr1` bridge is IPv4-only. Without this, `apt` will try IPv6 addresses first and fail with `Network is unreachable` errors:
+
+```bash
+pct exec 104 -- bash -c 'echo "Acquire::ForceIPv4 \"true\";" > /etc/apt/apt.conf.d/99force-ipv4'
+```
+
+---
+
+## Step 3 — Bind-Mount Data
 
 ```bash
 pct stop 104
@@ -45,7 +55,7 @@ pct start 104
 
 ---
 
-## Step 3 — Install CouchDB
+## Step 4 — Install CouchDB
 
 ```bash
 pct enter 104
@@ -75,7 +85,7 @@ During the install wizard:
 
 ---
 
-## Step 4 — Configure CouchDB for LiveSync
+## Step 5 — Configure CouchDB for LiveSync
 
 ```bash
 # Edit the CouchDB local config
@@ -112,7 +122,7 @@ curl http://localhost:5984/
 
 ---
 
-## Step 5 — Create a LiveSync Database & User
+## Step 6 — Create a LiveSync Database & User
 
 ```bash
 # Set your admin credentials from the install step
@@ -143,7 +153,7 @@ exit
 
 ---
 
-## Step 6 — Install the Obsidian LiveSync Plugin
+## Step 7 — Install the Obsidian LiveSync Plugin
 
 On each device (desktop, phone, tablet):
 
@@ -165,7 +175,7 @@ On each device (desktop, phone, tablet):
 
 ---
 
-## Step 7 — Verify Sync
+## Step 8 — Verify Sync
 
 1. Open your vault on two devices
 2. Create a test note on one

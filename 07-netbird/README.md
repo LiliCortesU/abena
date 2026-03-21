@@ -69,7 +69,17 @@ pct create 106 local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst \
 
 ---
 
-## Step 4 — Install Netbird Client
+## Step 4 — Force apt to use IPv4
+
+The internal `vmbr1` bridge is IPv4-only. Without this, `apt` will try IPv6 addresses first and fail with `Network is unreachable` errors:
+
+```bash
+pct exec 106 -- bash -c 'echo "Acquire::ForceIPv4 \"true\";" > /etc/apt/apt.conf.d/99force-ipv4'
+```
+
+---
+
+## Step 5 — Install Netbird Client
 
 ```bash
 pct enter 106
@@ -91,7 +101,7 @@ Note the **Netbird IP** assigned to this peer — it's in the `100.64.x.x` range
 
 ---
 
-## Step 5 — Enable IP Routing (Route LAN Traffic Through VPN)
+## Step 6 — Enable IP Routing (Route LAN Traffic Through VPN)
 
 The key step: configure CT106 to route traffic from your Netbird devices into the internal network:
 
@@ -115,7 +125,7 @@ exit
 
 ---
 
-## Step 6 — Add Netbird Route in Dashboard
+## Step 7 — Add Netbird Route in Dashboard
 
 In the Netbird dashboard:
 
@@ -128,7 +138,7 @@ This tells all your Netbird devices that traffic to `10.10.10.0/24` should go th
 
 ---
 
-## Step 7 — Connect Your Devices
+## Step 8 — Connect Your Devices
 
 On each device (phone, laptop, etc.):
 
@@ -143,7 +153,7 @@ On each device (phone, laptop, etc.):
 
 ---
 
-## Step 8 — Test Remote Access
+## Step 9 — Test Remote Access
 
 With Netbird connected on your phone (ideally on mobile data, not WiFi, to simulate remote):
 
@@ -157,7 +167,7 @@ Watchdog:         http://10.10.10.17:3001
 
 ---
 
-## Step 9 — Make Netbird Persistent
+## Step 10 — Make Netbird Persistent
 
 ```bash
 pct enter 106

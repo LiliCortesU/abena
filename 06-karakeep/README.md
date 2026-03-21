@@ -27,7 +27,17 @@ pct create 105 local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst \
 
 ---
 
-## Step 2 — Bind-Mount Data
+## Step 2 — Force apt to use IPv4
+
+The internal `vmbr1` bridge is IPv4-only. Without this, `apt` will try IPv6 addresses first and fail with `Network is unreachable` errors:
+
+```bash
+pct exec 105 -- bash -c 'echo "Acquire::ForceIPv4 \"true\";" > /etc/apt/apt.conf.d/99force-ipv4'
+```
+
+---
+
+## Step 3 — Bind-Mount Data
 
 ```bash
 pct stop 105
@@ -37,7 +47,7 @@ pct start 105
 
 ---
 
-## Step 3 — Install Docker
+## Step 4 — Install Docker
 
 Karakeep is distributed as a Docker image. We'll run it with Docker Compose inside the LXC container.
 
@@ -60,7 +70,7 @@ docker compose version
 
 ---
 
-## Step 4 — Configure & Launch Karakeep
+## Step 5 — Configure & Launch Karakeep
 
 ```bash
 mkdir -p /opt/karakeep
@@ -113,7 +123,7 @@ docker compose ps
 
 ---
 
-## Step 5 — Connect Chrome to Karakeep
+## Step 6 — Connect Chrome to Karakeep
 
 ```bash
 # Update docker-compose to link chrome to karakeep
@@ -160,7 +170,7 @@ exit
 
 ---
 
-## Step 6 — First Login
+## Step 7 — First Login
 
 Get the LAN IP:
 ```bash
@@ -173,7 +183,7 @@ Create an account on the first-run screen. There's no default admin — the firs
 
 ---
 
-## Step 7 — Browser Extension
+## Step 8 — Browser Extension
 
 Install the Karakeep browser extension for one-click saving:
 
