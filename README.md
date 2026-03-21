@@ -63,6 +63,8 @@ Follow these guides in sequence. **Do not skip steps.**
 
 > 📦 Adding a new service not listed here? See the **[New Container Appendix](./APPENDIX-new-containers.md)** — it covers proxy setup, apt config, and the correct way to install software in any new container.
 
+> 🎬 Configuring the media stack (qBittorrent, Prowlarr, Sonarr, Radarr, Jellyfin)? See the **[Media Stack Configuration Guide](./APPENDIX-media-config.md)**.
+
 ---
 
 ## Users & Groups Reference
