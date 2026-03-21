@@ -114,14 +114,19 @@ pct enter 102
 ### Base dependencies
 
 ```bash
-apt install -y curl wget gnupg2 apt-transport-https ca-certificates python3 python3-pip
+apt install -y curl wget gnupg apt-transport-https ca-certificates python3
 ```
 
 ### Jellyfin
 
+Jellyfin's install script fetches from external URLs — run it from the **Proxmox host** and pipe into the container:
+
 ```bash
-curl -fsSL https://repo.jellyfin.org/install-debuntu.sh | bash
-systemctl enable --now jellyfin
+# Exit CT102 first, run on Proxmox host
+exit
+curl -fsSL https://repo.jellyfin.org/install-debuntu.sh | pct exec 102 -- bash
+pct exec 102 -- systemctl enable --now jellyfin
+pct enter 102
 ```
 
 ### qBittorrent
@@ -147,7 +152,6 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-# Give qbt user access to download directories
 chown -R qbt:qbt /mnt/downloads
 chmod -R 775 /mnt/downloads
 
@@ -157,30 +161,51 @@ systemctl enable --now qbittorrent
 
 ### Sonarr
 
+The GPG key must be fetched from the **Proxmox host** since CT102 cannot reach external servers directly:
+
 ```bash
-apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 2009837CBFFD68F45BC180471F4F90DE2A9B4BF8
-echo "deb https://apt.sonarr.tv/debian bookworm main" > /etc/apt/sources.list.d/sonarr.list
-apt update && apt install -y sonarr
-systemctl enable --now sonarr
+# On Proxmox host
+curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2009837CBFFD68F45BC180471F4F90DE2A9B4BF8" \
+  | gpg --dearmor \
+  | pct exec 102 -- tee /usr/share/keyrings/sonarr.gpg > /dev/null
+
+# Inside CT102
+pct exec 102 -- bash -c \
+  'echo "deb [signed-by=/usr/share/keyrings/sonarr.gpg] http://10.10.10.254:3142/apt.sonarr.tv/debian bookworm main" \
+  > /etc/apt/sources.list.d/sonarr.list'
+
+pct exec 102 -- apt update
+pct exec 102 -- apt install -y sonarr
+pct exec 102 -- systemctl enable --now sonarr
 ```
 
 ### Radarr
 
+Radarr's install script also fetches externally — run from the **Proxmox host**:
+
 ```bash
-wget -qO- https://raw.githubusercontent.com/Radarr/Radarr/develop/distribution/debian/install.sh | bash
+# On Proxmox host
+curl -fsSL https://raw.githubusercontent.com/Radarr/Radarr/develop/distribution/debian/install.sh \
+  | pct exec 102 -- bash
 ```
 
 ### Prowlarr
 
+Fetch the release from the **Proxmox host** and copy it into the container:
+
 ```bash
-wget -qO /tmp/prowlarr.tar.gz \
-  "$(curl -s https://api.github.com/repos/Prowlarr/Prowlarr/releases/latest \
-  | grep 'browser_download_url.*linux-x64.tar.gz' | cut -d '"' -f 4)"
+# On Proxmox host — get latest release URL and download it
+PROWLARR_URL=$(curl -s https://api.github.com/repos/Prowlarr/Prowlarr/releases/latest \
+  | grep 'browser_download_url.*linux-x64.tar.gz' | cut -d '"' -f 4)
+curl -fsSL "$PROWLARR_URL" -o /tmp/prowlarr.tar.gz
 
-tar -xzf /tmp/prowlarr.tar.gz -C /opt/
-chown -R root:root /opt/Prowlarr
+# Copy into container and extract
+pct push 102 /tmp/prowlarr.tar.gz /tmp/prowlarr.tar.gz
+pct exec 102 -- tar -xzf /tmp/prowlarr.tar.gz -C /opt/
+pct exec 102 -- chown -R root:root /opt/Prowlarr
 
-cat > /etc/systemd/system/prowlarr.service << 'EOF'
+# Create the service inside CT102
+pct exec 102 -- bash -c 'cat > /etc/systemd/system/prowlarr.service << EOF
 [Unit]
 Description=Prowlarr
 After=network.target
@@ -193,14 +218,15 @@ User=root
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOF'
 
-systemctl daemon-reload
-systemctl enable --now prowlarr
+pct exec 102 -- systemctl daemon-reload
+pct exec 102 -- systemctl enable --now prowlarr
 ```
 
 ```bash
-exit
+# Re-enter the container when done
+pct enter 102
 ```
 
 ---
