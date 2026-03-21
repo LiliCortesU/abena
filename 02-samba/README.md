@@ -49,6 +49,15 @@ pct start 101
 
 ## Step 3 — Install & Configure Samba
 
+Two users are created:
+
+| User | Access | Password |
+|------|--------|----------|
+| `shareuser` | Read + Write | Yes — set by you |
+| `guest` | Read only | None |
+
+This lets media players, TVs, and other devices on your LAN browse files without credentials, while only you can make changes.
+
 ```bash
 pct enter 101
 ```
@@ -58,11 +67,15 @@ Inside CT101:
 ```bash
 apt update && apt install -y samba samba-common-bin
 
-# Create the samba user (maps to a Linux user)
-# 'shareuser' is the username you'll use when connecting from your devices
+# --- Read-write user ---
+# 'shareuser' is the username you'll use from your laptop/phone when writing files
 useradd -M -s /sbin/nologin shareuser
 smbpasswd -a shareuser
-# (enter your chosen Samba password twice — this is what you'll type on your phone/laptop)
+# (enter your chosen Samba password twice — this is what you'll type on your devices)
+
+# --- Read-only guest ---
+# No Linux account needed — Samba maps unauthenticated connections to nobody
+# 'nobody' already exists on Debian, nothing to create
 
 # Write Samba config
 cat > /etc/samba/smb.conf << 'EOF'
@@ -70,7 +83,9 @@ cat > /etc/samba/smb.conf << 'EOF'
    workgroup = WORKGROUP
    server string = Abena
    security = user
+   # Unauthenticated connections are mapped to the guest account
    map to guest = bad user
+   guest account = nobody
    log file = /var/log/samba/log.%m
    max log size = 50
    dns proxy = no
@@ -80,26 +95,36 @@ cat > /etc/samba/smb.conf << 'EOF'
 [Files]
    comment = Shared Files
    path = /mnt/samba
-   valid users = shareuser
-   read only = no
+   # Read-write for shareuser, read-only for guests
+   valid users = shareuser, guest
+   write list = shareuser
+   read only = yes
    browsable = yes
+   guest ok = yes
    create mask = 0664
    directory mask = 0775
-   force user = shareuser
+   force create mode = 0664
+   force directory mode = 0775
 
 [Media]
    comment = Media Library
    path = /mnt/media
-   valid users = shareuser
-   read only = no
+   # Guests can browse and play media; only shareuser can add/delete files
+   valid users = shareuser, guest
+   write list = shareuser
+   read only = yes
    browsable = yes
+   guest ok = yes
    create mask = 0664
    directory mask = 0775
-   force user = shareuser
+   force create mode = 0664
+   force directory mode = 0775
 EOF
 
-# Set ownership so the share user can write
+# Set ownership — shareuser owns the directories for writes
+# nobody (guest) only needs read permission, which 755 provides
 chown -R shareuser:shareuser /mnt/samba /mnt/media 2>/dev/null || true
+chmod -R 755 /mnt/samba /mnt/media
 
 systemctl enable smbd nmbd
 systemctl restart smbd nmbd
