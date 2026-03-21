@@ -71,10 +71,18 @@ pct create 106 local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst \
 
 ## Step 4 — Force apt to use IPv4
 
-The internal `vmbr1` bridge is IPv4-only. Without this, `apt` will try IPv6 addresses first and fail with `Network is unreachable` errors:
+The internal `vmbr1` bridge is IPv4-only, and some routers block outbound HTTP (port 80) for IPs they did not assign. Both issues are fixed by forcing IPv4 and switching apt to HTTPS mirrors:
 
 ```bash
+# Force IPv4
 pct exec 106 -- bash -c 'echo "Acquire::ForceIPv4 \"true\";" > /etc/apt/apt.conf.d/99force-ipv4'
+
+# Switch to HTTPS mirrors
+pct exec 106 -- bash -c 'cat > /etc/apt/sources.list << EOF
+deb https://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
+deb https://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
+deb https://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+EOF'
 ```
 
 ---
