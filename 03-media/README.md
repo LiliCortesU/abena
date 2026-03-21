@@ -138,8 +138,9 @@ apt install -y qbittorrent-nox
 # so they can read each other's files without permission conflicts
 groupadd media
 
-# Create a dedicated user for qBittorrent, add to media group
-useradd -r -s /sbin/nologin -G media qbt
+# Create a dedicated user for qBittorrent with a home directory
+# (qbittorrent-nox requires /home/qbt/.cache to exist)
+useradd -r -m -s /sbin/nologin -G media qbt
 
 cat > /etc/systemd/system/qbittorrent.service << 'EOF'
 [Unit]
