@@ -119,15 +119,42 @@ apt install -y curl wget gnupg apt-transport-https ca-certificates python3
 
 ### Jellyfin
 
-Jellyfin's install script fetches from external URLs — run it from the **Proxmox host** and pipe into the container:
+Jellyfin's install script fetches a signing key from inside the container (blocked by router), and the apt-cacher-ng proxy runs out of memory trying to proxy the Jellyfin apt repo. The correct approach is to download all three `.deb` packages on the **Proxmox host** and install them with `apt` inside the container, which handles dependency resolution automatically.
 
 ```bash
-# Exit CT102 first, run on Proxmox host
-exit
-curl -fsSL https://repo.jellyfin.org/install-debuntu.sh | pct exec 102 -- bash
-pct exec 102 -- systemctl enable --now jellyfin
-pct enter 102
+# On Proxmox host — get current version and download all three debs
+VERSION=$(curl -s https://api.github.com/repos/jellyfin/jellyfin/releases/latest \
+  | grep '"tag_name"' | cut -d '"' -f 4 | tr -d 'v')
+echo "Version: $VERSION"
+
+curl -fsSL "https://repo.jellyfin.org/files/server/debian/latest-stable/amd64/jellyfin-server_${VERSION}+deb12_amd64.deb" \
+  -o /tmp/jellyfin-server.deb
+
+curl -fsSL "https://repo.jellyfin.org/files/server/debian/latest-stable/amd64/jellyfin-web_${VERSION}+deb12_all.deb" \
+  -o /tmp/jellyfin-web.deb
+
+FFMPEG_URL=$(curl -s https://api.github.com/repos/jellyfin/jellyfin-ffmpeg/releases/latest \
+  | grep 'browser_download_url.*bookworm_amd64.deb' | cut -d '"' -f 4)
+curl -fsSL "$FFMPEG_URL" -o /tmp/jellyfin-ffmpeg.deb
+
+# Verify all three downloaded (should be 30-55 MB each)
+ls -lh /tmp/jellyfin-server.deb /tmp/jellyfin-web.deb /tmp/jellyfin-ffmpeg.deb
+
+# Push into CT102 and install
+pct push 102 /tmp/jellyfin-server.deb /tmp/jellyfin-server.deb
+pct push 102 /tmp/jellyfin-web.deb /tmp/jellyfin-web.deb
+pct push 102 /tmp/jellyfin-ffmpeg.deb /tmp/jellyfin-ffmpeg.deb
+
+pct exec 102 -- apt install -y \
+  /tmp/jellyfin-server.deb \
+  /tmp/jellyfin-web.deb \
+  /tmp/jellyfin-ffmpeg.deb
+
+# Verify — should show active (running) with ffmpeg path in logs
+pct exec 102 -- systemctl status jellyfin --no-pager
 ```
+
+> The deb install creates the `jellyfin` system user, systemd service, and ffmpeg path automatically — no manual configuration needed.
 
 ### qBittorrent
 
