@@ -78,8 +78,7 @@ pct enter 102
 ### Base dependencies
 
 ```bash
-apt update && apt install -y curl wget gnupg2 apt-transport-https \
-  ca-certificates software-properties-common python3 python3-pip
+apt install -y curl wget gnupg2 apt-transport-https ca-certificates python3 python3-pip
 ```
 
 ### Jellyfin
