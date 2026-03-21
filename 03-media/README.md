@@ -161,22 +161,22 @@ systemctl enable --now qbittorrent
 
 ### Sonarr
 
-The GPG key must be fetched from the **Proxmox host** since CT102 cannot reach external servers directly:
+Sonarr no longer uses an apt repo — the official method is an install script that deploys binaries directly to `/opt/Sonarr`. Run from the **Proxmox host**:
 
 ```bash
-# On Proxmox host
-curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2009837CBFFD68F45BC180471F4F90DE2A9B4BF8" \
-  | gpg --dearmor \
-  | pct exec 102 -- tee /usr/share/keyrings/sonarr.gpg > /dev/null
+# Fetch the install script and pipe into CT102
+curl -fsSL https://raw.githubusercontent.com/Sonarr/Sonarr/develop/distribution/debian/install.sh \
+  | pct exec 102 -- bash
+```
 
-# Inside CT102
-pct exec 102 -- bash -c \
-  'echo "deb [signed-by=/usr/share/keyrings/sonarr.gpg] http://10.10.10.254:3142/apt.sonarr.tv/debian bookworm main" \
-  > /etc/apt/sources.list.d/sonarr.list'
+The script will ask:
+- **User to run Sonarr as** → type `sonarr`
+- **Group to run Sonarr as** → type `sonarr`
 
-pct exec 102 -- apt update
-pct exec 102 -- apt install -y sonarr
-pct exec 102 -- systemctl enable --now sonarr
+Sonarr is configured to auto-start by the install script. Verify:
+
+```bash
+pct exec 102 -- systemctl status sonarr
 ```
 
 ### Radarr
