@@ -103,7 +103,15 @@ pct set 102 \
   --mp1 /mnt/data/downloads,mp=/mnt/downloads
 
 pct start 102
+pct enter 102
+
+# Set group ownership to media so all services (sonarr, bazarr, etc.) can read/write
+chown -R sonarr:media /mnt/media
+chmod -R 775 /mnt/media
+exit
 ```
+
+> Without `media` group ownership on `/mnt/media`, Bazarr will fail with `PermissionError(13, 'Permission denied')` when trying to access Radarr/Sonarr root directories.
 
 ---
 
