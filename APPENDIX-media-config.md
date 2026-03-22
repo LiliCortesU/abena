@@ -3,6 +3,7 @@
 This guide covers the initial configuration of all five services in CT102 after installation. Follow this order — each service depends on the previous one being configured first.
 
 > Access all services via the temporary LAN interface added during setup. The LAN IP changes each time you add the interface — always get the current one with:
+
 > ```bash
 > pct exec 102 -- ip addr show eth1 | grep 'inet '
 > ```
@@ -178,6 +179,49 @@ Install Jellyfin on your devices:
 - **Desktop** — browser at `http://<server-ip>:8096` or the Jellyfin Media Player app
 
 For remote access outside your home, connect via Netbird VPN first, then use `http://10.10.10.12:8096`.
+
+---
+
+## 6. Bazarr (port 6767)
+
+Bazarr monitors Sonarr and Radarr libraries and automatically downloads subtitles for your content.
+
+### Connect to Sonarr and Radarr
+
+Settings → Sonarr:
+
+| Field | Value |
+|-------|-------|
+| Address | `localhost` |
+| Port | `8989` |
+| API Key | (from Sonarr → Settings → General) |
+
+Click Test → Save. Repeat under Settings → Radarr with port `7878`.
+
+### Add a Subtitle Provider
+
+Settings → Subtitles → Subtitle Providers → Add Provider. Recommended options:
+
+| Provider | Notes |
+|----------|-------|
+| **OpenSubtitles.com** | Free account required — high volume |
+| **Subscene** | No account needed — good coverage |
+| **YIFY Subtitles** | Movies only, no account needed |
+
+Add at least one, click Test → Save.
+
+### Configure Languages
+
+Settings → Languages → Languages Filter → enable your preferred language(s) (e.g. English).
+
+Then set a default language profile:
+- Settings → Languages → Add New Profile → give it a name, add your language(s)
+- Under "Default Settings" enable the profile for both Series and Movies
+
+### Manual Subtitle Search (on-demand)
+
+- **Sonarr series**: Bazarr → Series → click a show → Episodes → click the subtitle icon on any episode
+- **Radarr movies**: Bazarr → Movies → click the subtitle icon on any film
 
 ---
 

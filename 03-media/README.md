@@ -8,6 +8,7 @@
 | Radarr | Movie tracking & auto-download | 7878 |
 | Prowlarr | Indexer manager — feeds Sonarr & Radarr | 9696 |
 | qBittorrent | Download client | 8080 |
+| Bazarr | Subtitle automation — fetches subs for Sonarr & Radarr | 6767 |
 
 All apps share a unified `/data` layout (TRaSH Guides standard), which lets Sonarr/Radarr use **hardlinks** instead of copying files — no wasted disk space.
 
@@ -279,6 +280,65 @@ pct exec 102 -- systemctl enable --now radarr
 pct exec 102 -- systemctl status radarr
 ```
 
+### Bazarr
+
+Bazarr is Python-based and requires pip packages. Since the container has no internet access, download everything on the **Proxmox host** and push it in.
+
+```bash
+# On Proxmox host — download Bazarr release
+BAZARR_URL=$(curl -s https://api.github.com/repos/morpheus65535/bazarr/releases/latest \
+  | grep 'browser_download_url.*bazarr.zip' | cut -d '"' -f 4)
+curl -fsSL "$BAZARR_URL" -o /tmp/bazarr.zip
+
+# Extract requirements.txt from the zip, then pre-download all Python wheels on the host
+unzip -p /tmp/bazarr.zip requirements.txt > /tmp/bazarr-requirements.txt
+pip3 download -d /tmp/bazarr-wheels -r /tmp/bazarr-requirements.txt
+cd /tmp && zip -qr bazarr-wheels.zip bazarr-wheels/
+
+# Push everything into CT102
+pct push 102 /tmp/bazarr.zip /tmp/bazarr.zip
+pct push 102 /tmp/bazarr-wheels.zip /tmp/bazarr-wheels.zip
+
+# Install unzip and pip inside the container, then extract
+pct exec 102 -- apt install -y unzip python3-pip
+pct exec 102 -- mkdir -p /opt/bazarr
+pct exec 102 -- unzip -q /tmp/bazarr.zip -d /opt/bazarr
+pct exec 102 -- unzip -q /tmp/bazarr-wheels.zip -d /tmp/
+
+# Install wheels offline (no internet needed)
+pct exec 102 -- pip3 install --no-index --find-links=/tmp/bazarr-wheels -r /opt/bazarr/requirements.txt
+
+# Create dedicated user and set permissions
+pct exec 102 -- useradd -r -s /sbin/nologin -G media bazarr
+pct exec 102 -- chown -R bazarr:media /opt/bazarr
+pct exec 102 -- mkdir -p /var/lib/bazarr
+pct exec 102 -- chown -R bazarr:media /var/lib/bazarr
+
+# Create systemd service
+pct exec 102 -- bash -c 'cat > /etc/systemd/system/bazarr.service << EOF
+[Unit]
+Description=Bazarr Subtitle Manager
+After=syslog.target network.target sonarr.service radarr.service
+
+[Service]
+User=bazarr
+Group=media
+Type=simple
+WorkingDirectory=/opt/bazarr
+ExecStart=/usr/bin/python3 /opt/bazarr/bazarr.py --config /var/lib/bazarr/
+TimeoutStopSec=20
+KillMode=process
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF'
+
+pct exec 102 -- systemctl daemon-reload
+pct exec 102 -- systemctl enable --now bazarr
+pct exec 102 -- systemctl status bazarr
+```
+
 ### Prowlarr
 
 ```bash
@@ -342,6 +402,7 @@ Use the IP shown (e.g. `192.168.0.x`) to access all services:
 | Sonarr | `http://<lan-ip>:8989` |
 | Radarr | `http://<lan-ip>:7878` |
 | Prowlarr | `http://<lan-ip>:9696` |
+| Bazarr | `http://<lan-ip>:6767` |
 
 > ⚠️ The LAN IP changes every time you add the interface. Always run `pct exec 102 -- ip addr show eth1 | grep 'inet '` to get the current IP rather than assuming it's the same as last time.
 
@@ -375,6 +436,15 @@ Use the IP shown (e.g. `192.168.0.x`) to access all services:
 2. Settings → Download Clients → add qBittorrent (same as above)
 3. In Prowlarr → Settings → Apps → add Radarr with its API key
 
+### Bazarr Setup
+
+1. Open Bazarr → Settings → Sonarr — enter `localhost` and the Sonarr API key, click Test & Save
+2. Settings → Radarr — same for Radarr
+3. Settings → Subtitles → add at least one provider (e.g. OpenSubtitles.com, Subscene)
+4. Settings → Languages — enable your preferred subtitle languages
+
+> See **[APPENDIX-media-config.md](../APPENDIX-media-config.md)** for detailed Bazarr configuration.
+
 ### Jellyfin Setup
 
 1. Follow the first-run wizard
@@ -399,10 +469,11 @@ Access Jellyfin through Netbird (remote) or Samba (LAN). Alternatively, keep eth
 
 ## Checkpoint
 
-- [ ] All 5 services running (`systemctl status jellyfin sonarr radarr prowlarr qbittorrent`)
+- [ ] All 6 services running (`systemctl status jellyfin sonarr radarr prowlarr qbittorrent bazarr`)
 - [ ] qBittorrent pointing to correct download directories
 - [ ] Prowlarr connected to at least one indexer
 - [ ] Sonarr and Radarr connected to both Prowlarr and qBittorrent
+- [ ] Bazarr connected to Sonarr and Radarr with at least one subtitle provider configured
 - [ ] Jellyfin library populated with your media
 
 **Next:** [04 — n8n](../04-n8n/README.md)
