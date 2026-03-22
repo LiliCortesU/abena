@@ -9,6 +9,7 @@
 | Prowlarr | Indexer manager — feeds Sonarr & Radarr | 9696 |
 | qBittorrent | Download client | 8080 |
 | Bazarr | Subtitle automation — fetches subs for Sonarr & Radarr | 6767 |
+| FlareSolverr | Cloudflare bypass proxy for protected indexers | 8191 |
 
 All apps share a unified `/data` layout (TRaSH Guides standard), which lets Sonarr/Radarr use **hardlinks** instead of copying files — no wasted disk space.
 
@@ -368,6 +369,43 @@ pct exec 102 -- systemctl enable --now prowlarr
 pct exec 102 -- systemctl status prowlarr
 ```
 
+### FlareSolverr
+
+FlareSolverr is a proxy that bypasses Cloudflare protection on indexers. Some indexers in Prowlarr require it to function. It uses Chromium headlessly via a virtual display (Xvfb).
+
+> **Note:** The pre-built FlareSolverr binary requires glibc 2.38, but Debian 12 (bookworm) ships glibc 2.36. Install from source instead — this is the confirmed working approach.
+
+```bash
+# Inside CT102
+apt install -y python3 python3-pip chromium chromium-driver git xvfb
+
+cd /opt
+git clone https://github.com/FlareSolverr/FlareSolverr.git
+cd FlareSolverr
+pip3 install -r requirements.txt --break-system-packages
+
+cat > /etc/systemd/system/flaresolverr.service << 'EOF'
+[Unit]
+Description=FlareSolverr
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/FlareSolverr/src/flaresolverr.py
+Restart=on-failure
+Environment=LOG_LEVEL=info
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now flaresolverr
+
+# Verify
+curl -s http://localhost:8191/health
+# Should return: {"status": "ok"}
+```
+
 ---
 
 ## Step 5 — Initial Configuration
@@ -393,6 +431,7 @@ Use the IP shown (e.g. `192.168.0.x`) to access all services:
 | Radarr | `http://<lan-ip>:7878` |
 | Prowlarr | `http://<lan-ip>:9696` |
 | Bazarr | `http://<lan-ip>:6767` |
+| FlareSolverr | `http://localhost:8191` (internal only) |
 
 > ⚠️ The LAN IP changes every time you add the interface. Always run `pct exec 102 -- ip addr show eth1 | grep 'inet '` to get the current IP rather than assuming it's the same as last time.
 
@@ -459,7 +498,7 @@ Access Jellyfin through Netbird (remote) or Samba (LAN). Alternatively, keep eth
 
 ## Checkpoint
 
-- [ ] All 6 services running (`systemctl status jellyfin sonarr radarr prowlarr qbittorrent bazarr`)
+- [ ] All 7 services running (`systemctl status jellyfin sonarr radarr prowlarr qbittorrent bazarr flaresolverr`)
 - [ ] qBittorrent pointing to correct download directories
 - [ ] Prowlarr connected to at least one indexer
 - [ ] Sonarr and Radarr connected to both Prowlarr and qBittorrent

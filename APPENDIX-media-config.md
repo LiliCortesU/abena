@@ -80,6 +80,22 @@ Settings → Apps → Add Application:
 
 Click Test → Save for each. Prowlarr will automatically sync indexers to both apps.
 
+### FlareSolverr Proxy (for Cloudflare-protected indexers)
+
+Some indexers are behind Cloudflare and will fail with a timeout or CAPTCHA error without FlareSolverr. Add it as a proxy in Prowlarr so those indexers can route through it.
+
+Settings → Indexers → FlareSolverr Proxies → **+**:
+
+| Field | Value |
+|-------|-------|
+| Name | `FlareSolverr` |
+| Tags | create a tag e.g. `flaresolverr` |
+| Host | `http://localhost:8191` |
+
+Click Test → Save.
+
+Then on any indexer that fails due to Cloudflare: edit it → assign the `flaresolverr` tag. Only tag indexers that actually need it — FlareSolverr adds latency.
+
 ---
 
 ## 3. Sonarr (port 8989)
