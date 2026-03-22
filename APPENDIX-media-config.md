@@ -59,20 +59,22 @@ Settings → General → Security → API Key — copy this, you'll need it when
 ### Connect to Sonarr and Radarr
 Settings → Apps → Add Application:
 
+> All three services run inside CT102, so use `localhost` here — `10.10.10.12` is only reachable after the internal vmbr1 interface is fully configured, which happens later in the networking setup.
+
 **For Sonarr:**
 | Field | Value |
 |-------|-------|
 | Application | Sonarr |
-| Prowlarr Server | `http://10.10.10.12:9696` |
-| Sonarr Server | `http://10.10.10.12:8989` |
+| Prowlarr Server | `http://localhost:9696` |
+| Sonarr Server | `http://localhost:8989` |
 | API Key | (from Sonarr → Settings → General) |
 
 **For Radarr:**
 | Field | Value |
 |-------|-------|
 | Application | Radarr |
-| Prowlarr Server | `http://10.10.10.12:9696` |
-| Radarr Server | `http://10.10.10.12:7878` |
+| Prowlarr Server | `http://localhost:9696` |
+| Radarr Server | `http://localhost:7878` |
 | API Key | (from Radarr → Settings → General) |
 
 Click Test → Save for each. Prowlarr will automatically sync indexers to both apps.
@@ -96,7 +98,7 @@ Settings → Download Clients → Add → qBittorrent:
 
 | Field | Value |
 |-------|-------|
-| Host | `10.10.10.12` |
+| Host | `localhost` |
 | Port | `8080` |
 | Username | `admin` |
 | Password | (your qBittorrent password) |
@@ -129,7 +131,7 @@ Settings → Download Clients → Add → qBittorrent:
 
 | Field | Value |
 |-------|-------|
-| Host | `10.10.10.12` |
+| Host | `localhost` |
 | Port | `8080` |
 | Username | `admin` |
 | Password | (your qBittorrent password) |
