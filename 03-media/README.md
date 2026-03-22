@@ -282,40 +282,30 @@ pct exec 102 -- systemctl status radarr
 
 ### Bazarr
 
-Bazarr is Python-based and requires pip packages. Since the container has no internet access, download everything on the **Proxmox host** and push it in.
+Bazarr is Python-based. Debian 12 requires pip packages to be installed in a virtual environment.
 
 ```bash
-# On Proxmox host — download Bazarr release
-BAZARR_URL=$(curl -s https://api.github.com/repos/morpheus65535/bazarr/releases/latest \
-  | grep 'browser_download_url.*bazarr.zip' | cut -d '"' -f 4)
-curl -fsSL "$BAZARR_URL" -o /tmp/bazarr.zip
+# Inside CT102
+apt install -y unzip python3-full
 
-# Extract requirements.txt from the zip, then pre-download all Python wheels on the host
-unzip -p /tmp/bazarr.zip requirements.txt > /tmp/bazarr-requirements.txt
-pip3 download -d /tmp/bazarr-wheels -r /tmp/bazarr-requirements.txt
-cd /tmp && zip -qr bazarr-wheels.zip bazarr-wheels/
+# Download and extract Bazarr (Squid proxies the request transparently)
+curl -fsSL "$(curl -s https://api.github.com/repos/morpheus65535/bazarr/releases/latest \
+  | grep 'browser_download_url.*bazarr.zip' | cut -d '"' -f 4)" -o /tmp/bazarr.zip
+mkdir -p /opt/bazarr
+unzip -q /tmp/bazarr.zip -d /opt/bazarr
 
-# Push everything into CT102
-pct push 102 /tmp/bazarr.zip /tmp/bazarr.zip
-pct push 102 /tmp/bazarr-wheels.zip /tmp/bazarr-wheels.zip
-
-# Install unzip and pip inside the container, then extract
-pct exec 102 -- apt install -y unzip python3-pip
-pct exec 102 -- mkdir -p /opt/bazarr
-pct exec 102 -- unzip -q /tmp/bazarr.zip -d /opt/bazarr
-pct exec 102 -- unzip -q /tmp/bazarr-wheels.zip -d /tmp/
-
-# Install wheels offline (no internet needed)
-pct exec 102 -- pip3 install --no-index --find-links=/tmp/bazarr-wheels -r /opt/bazarr/requirements.txt
+# Create a venv and install dependencies into it
+python3 -m venv /opt/bazarr/venv
+/opt/bazarr/venv/bin/pip install -r /opt/bazarr/requirements.txt
 
 # Create dedicated user and set permissions
-pct exec 102 -- useradd -r -s /sbin/nologin -G media bazarr
-pct exec 102 -- chown -R bazarr:media /opt/bazarr
-pct exec 102 -- mkdir -p /var/lib/bazarr
-pct exec 102 -- chown -R bazarr:media /var/lib/bazarr
+useradd -r -s /sbin/nologin -G media bazarr
+chown -R bazarr:media /opt/bazarr
+mkdir -p /var/lib/bazarr
+chown -R bazarr:media /var/lib/bazarr
 
 # Create systemd service
-pct exec 102 -- bash -c 'cat > /etc/systemd/system/bazarr.service << EOF
+cat > /etc/systemd/system/bazarr.service << 'EOF'
 [Unit]
 Description=Bazarr Subtitle Manager
 After=syslog.target network.target sonarr.service radarr.service
@@ -325,18 +315,18 @@ User=bazarr
 Group=media
 Type=simple
 WorkingDirectory=/opt/bazarr
-ExecStart=/usr/bin/python3 /opt/bazarr/bazarr.py --config /var/lib/bazarr/
+ExecStart=/opt/bazarr/venv/bin/python3 /opt/bazarr/bazarr.py --config /var/lib/bazarr/
 TimeoutStopSec=20
 KillMode=process
 Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
-EOF'
+EOF
 
-pct exec 102 -- systemctl daemon-reload
-pct exec 102 -- systemctl enable --now bazarr
-pct exec 102 -- systemctl status bazarr
+systemctl daemon-reload
+systemctl enable --now bazarr
+systemctl status bazarr
 ```
 
 ### Prowlarr

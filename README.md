@@ -35,7 +35,7 @@ A resilient, isolated, self-hosted server stack built on Proxmox VE.
 |-----|------------|--------|-------------------------------------------|
 | 100 | gateway    | 256 MB | dnsmasq — internal DHCP & DNS             |
 | 101 | samba      | 512 MB | Samba file server                         |
-| 102 | media      | 2 GB   | Jellyfin + Sonarr + Radarr + Prowlarr + qBittorrent |
+| 102 | media      | 2 GB   | Jellyfin + Sonarr + Radarr + Prowlarr + qBittorrent + Bazarr |
 | 103 | n8n        | 1 GB   | n8n automation                            |
 | 104 | obsidian   | 512 MB | CouchDB (Obsidian LiveSync)               |
 | 105 | karakeep   | 512 MB | Karakeep bookmark manager                 |
@@ -96,6 +96,7 @@ No custom users are created on the Proxmox host itself. All work is done as `roo
 | `media` | Group | Shared group for all download/media services — allows them to read each other's files | [03-media → Step 4, qBittorrent section](./03-media/README.md) |
 | `qbt` | Linux user | Runs qBittorrent — member of `media` group | [03-media → Step 4, qBittorrent section](./03-media/README.md) |
 | `sonarr` | Linux user | Runs Sonarr, Radarr, and Prowlarr — member of `media` group | [03-media → Step 4, Sonarr section](./03-media/README.md) |
+| `bazarr` | Linux user | Runs Bazarr subtitle manager — member of `media` group | [03-media → Step 4, Bazarr section](./03-media/README.md) |
 
 **Why a shared `media` group?** Sonarr and Radarr need to move files that qBittorrent downloaded. Without a shared group, `sonarr` cannot access files owned by `qbt` and imports would fail silently. By putting both users in `media` and setting directory permissions to `775`, all services can read and write to shared directories. Radarr and Prowlarr reuse the `sonarr` user — no separate accounts needed since they serve the same function and need the same file access.
 
@@ -153,6 +154,7 @@ No custom Linux users are created. Uptime Kuma runs under PM2 as root inside the
 | CT102 | `media` group | 03-media Step 4 — qBittorrent |
 | CT102 | `qbt` | 03-media Step 4 — qBittorrent |
 | CT102 | `sonarr` | 03-media Step 4 — Sonarr |
+| CT102 | `bazarr` | 03-media Step 4 — Bazarr |
 | CT103 | `n8n` | 04-n8n Step 4 |
 | CT104 | `admin` (CouchDB) | 05-obsidian Step 4 |
 | CT104 | `obsidian` (CouchDB) | 05-obsidian Step 6 |
