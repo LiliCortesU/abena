@@ -202,6 +202,74 @@ which <binary-name>
 
 ---
 
+## Bazarr: `PermissionError(13, 'Permission denied')` saving subtitle files
+
+### Symptoms
+```
+ERROR (download:118) - BAZARR Error saving Subtitles file to disk for this file
+/mnt/media/movies/.../foo.mp4: PermissionError(13, 'Permission denied')
+```
+Bazarr downloads subtitles successfully but cannot write them next to the media files.
+
+### Root Cause
+The `bazarr` process has stale group membership. The `bazarr` user is in the `media` group in `/etc/group`, but the running process was started before that group membership existed — so the process's effective groups do not include `media`, and it cannot write to directories owned by `sonarr:media`.
+
+You can confirm the process lacks the group:
+```bash
+cat /proc/$(pgrep -f "bazarr.py" | head -1)/status | grep Groups
+# If media GID (1001) is missing, this is the cause
+```
+
+And confirm the user itself is correct:
+```bash
+id bazarr   # should show groups=...,media
+su -s /bin/bash bazarr -c "touch /mnt/media/movies/test.txt && echo OK"
+# If this prints OK, the user is fine — it's the running process that's stale
+```
+
+### Fix
+Restart the service so the new process inherits current group membership:
+```bash
+systemctl restart bazarr
+# Confirm the live process now has the media GID
+cat /proc/$(pgrep -f "bazarr.py" | head -1)/status | grep Groups
+```
+
+### Prevention
+Always verify `id bazarr` shows the `media` group **before** starting the service for the first time. If you add the user to a group after the service is already running, you must restart it.
+
+---
+
+## Bazarr: port 6767 already in use after restart / zombie child processes
+
+### Symptoms
+```
+ERROR (server:64) - BAZARR cannot bind to default TCP port (6767) because it's already in use, exiting...
+```
+After `systemctl restart bazarr`, the new instance immediately exits. `pgrep -af bazarr` shows more than two processes.
+
+### Root Cause
+Bazarr's `bazarr.py` spawns `main.py` as a child process. With `KillMode=process` in the service file, systemd only kills the direct child (`bazarr.py`) on stop/restart — the grandchild (`main.py`) survives, continues holding port 6767, and blocks the new instance from binding.
+
+### Fix
+Kill the orphaned process manually and fix the service file:
+```bash
+# Find and kill the stale main.py
+kill -9 $(pgrep -f "main.py" | head -1)
+
+# Fix the service so this can't happen again
+sed -i 's/KillMode=process/KillMode=control-group/' /etc/systemd/system/bazarr.service
+systemctl daemon-reload
+systemctl restart bazarr
+
+# Verify only two processes remain (bazarr.py + main.py)
+pgrep -af bazarr
+```
+
+`KillMode=control-group` tells systemd to kill every process in the service's cgroup on stop, not just the direct child.
+
+---
+
 ## Container has no internet despite correct NAT rule
 
 ### Symptoms

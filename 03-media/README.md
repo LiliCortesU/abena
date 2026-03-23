@@ -307,13 +307,22 @@ unzip -q /tmp/bazarr.zip -d /opt/bazarr
 python3 -m venv /opt/bazarr/venv
 /opt/bazarr/venv/bin/pip install -r /opt/bazarr/requirements.txt
 
-# Create dedicated user and set permissions
+# Create dedicated user and add to the media group so it can write subtitles
+# alongside media files owned by sonarr:media
 useradd -r -s /sbin/nologin -G media bazarr
 chown -R bazarr:media /opt/bazarr
 mkdir -p /var/lib/bazarr
 chown -R bazarr:media /var/lib/bazarr
 
+# Verify bazarr is in the media group before starting the service
+# (group membership only takes effect at process start — not after the fact)
+id bazarr   # should show groups=...,media
+
 # Create systemd service
+# KillMode=control-group ensures systemd kills ALL processes in the cgroup on
+# stop/restart, including the main.py child that bazarr.py spawns. Without this,
+# child processes survive restarts and hold port 6767, preventing the new
+# instance from binding.
 cat > /etc/systemd/system/bazarr.service << 'EOF'
 [Unit]
 Description=Bazarr Subtitle Manager
@@ -326,7 +335,7 @@ Type=simple
 WorkingDirectory=/opt/bazarr
 ExecStart=/opt/bazarr/venv/bin/python3 /opt/bazarr/bazarr.py --config /var/lib/bazarr/
 TimeoutStopSec=20
-KillMode=process
+KillMode=control-group
 Restart=on-failure
 
 [Install]
